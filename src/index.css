@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-[#FFF5F7] text-[#2B2B2B] antialiased selection:bg-[#FFD1DC] selection:text-[#2B2B2B];
+  }
+}
+
+@layer utilities {
+  .clip-text {
+    color: transparent;
+    background-clip: text;
+  }
+}
