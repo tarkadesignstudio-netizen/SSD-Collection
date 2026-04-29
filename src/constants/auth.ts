@@ -1,5 +1,8 @@
-export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
+export const ALLOWED_ADMIN_EMAILS = [
+  'tarkadesignstudio@gmail.com',
+  'ssd.motwani@gmail.com'
+];
 
 export const isAdmin = (user: { email?: string | null } | null) => {
-  return user?.email === ADMIN_EMAIL;
+  return !!user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
 };
