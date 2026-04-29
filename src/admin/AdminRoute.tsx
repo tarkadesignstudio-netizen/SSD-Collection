@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { ADMIN_EMAIL } from "../constants/auth";
+import { isAdmin } from "../constants/auth";
 import { useAuth } from "../context/AuthContext";
 
 interface AdminRouteProps {
@@ -14,7 +14,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     return <Navigate to="/" />;
   }
 
-  if (user.email !== ADMIN_EMAIL) {
+  if (!isAdmin(user)) {
     return <Navigate to="/" />;
   }
 
