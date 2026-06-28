@@ -16,7 +16,9 @@ export interface Product {
   id: string;
   name: string;
   category: string;
-  price: number;
+  price?: number; // legacy support
+  sellingPrice?: number;
+  mrp?: number;
   image?: string; // legacy support
   images?: ProductImage[];
   description?: string;

@@ -70,7 +70,7 @@ const ManageProducts: React.FC = () => {
                     <tr className="border-b border-[#F3D6DC] text-[#7A7A7A] text-sm font-medium uppercase tracking-wider">
                       <th className="py-4 px-4">Product</th>
                       <th className="py-4 px-4">Category</th>
-                      <th className="py-4 px-4">Price</th>
+                      <th className="py-4 px-4">Selling Price</th>
                       <th className="py-4 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -98,7 +98,7 @@ const ManageProducts: React.FC = () => {
                               </div>
                             </td>
                             <td className="py-4 px-4 text-[#7A7A7A]">{product.category}</td>
-                            <td className="py-4 px-4 font-semibold text-[#E75480]">₹{product.price}</td>
+                            <td className="py-4 px-4 font-semibold text-[#E75480]">₹{product.sellingPrice || product.price || 0}</td>
                             <td className="py-4 px-4 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 {/* Edit - optional for now, placeholder */}
@@ -154,7 +154,7 @@ const ManageProducts: React.FC = () => {
                             <span className="font-medium text-[#2B2B2B] text-[13px] leading-tight line-clamp-2">{product.name}</span>
                             <div className="flex justify-between items-center w-full">
                               <span className="text-[10px] uppercase text-[#7A7A7A]">{product.category}</span>
-                              <span className="text-sm font-semibold text-[#E75480]">₹{product.price}</span>
+                              <span className="text-sm font-semibold text-[#E75480]">₹{product.sellingPrice || product.price || 0}</span>
                             </div>
                           </div>
                         </div>
