@@ -36,10 +36,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
         <h3 className="text-xs sm:text-sm font-medium text-[#2B2B2B] mb-1 sm:mb-2 line-clamp-2 sm:truncate leading-snug">
           {product.name}
         </h3>
-        <div className="mt-auto">
-          <span className="text-xs sm:text-sm font-semibold text-[#E75480]">
-            {formatPrice(product.price)}
+        <div className="mt-auto flex flex-col gap-0.5">
+          {product.mrp && (
+            <span className="text-[10px] sm:text-xs text-gray-400 line-through">
+              {formatPrice(product.mrp)}
+            </span>
+          )}
+          <span className="text-sm sm:text-base font-bold text-[#E75480]">
+            {formatPrice(product.sellingPrice || product.price || 0)}
           </span>
+          {product.description && (
+            <p className="text-[11px] sm:text-xs text-gray-500 line-clamp-2 sm:line-clamp-3 mt-1 leading-relaxed">
+              {product.description}
+            </p>
+          )}
         </div>
       </div>
     </div>

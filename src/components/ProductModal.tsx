@@ -127,10 +127,23 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
           <h2 className="text-3xl font-bold text-[#2B2B2B] mb-4 leading-tight">
             {product.name}
           </h2>
-          <div className="text-2xl font-semibold text-[#E75480] mb-6">
-            {formatPrice(product.price)}
+          <div className="flex flex-col gap-1 mb-6">
+            {product.mrp && (
+              <span className="text-lg text-gray-400 line-through">
+                {formatPrice(product.mrp)}
+              </span>
+            )}
+            <div className="text-2xl font-semibold text-[#E75480]">
+              {formatPrice(product.sellingPrice || product.price || 0)}
+            </div>
           </div>
-          
+
+          {product.description && (
+            <p className="text-[#555555] mb-6 leading-relaxed whitespace-pre-wrap">
+              {product.description}
+            </p>
+          )}
+
           <div className="w-12 h-1 bg-[#F3D6DC] rounded-full mb-10"></div>
 
           {/* Action buttons */}

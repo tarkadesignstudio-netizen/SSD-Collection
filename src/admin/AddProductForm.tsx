@@ -10,7 +10,9 @@ import { db } from '../database/firebase';
 const AddProductForm: React.FC = () => {
   const { user } = useAuth();
   const [productName, setProductName] = useState('');
-  const [productPrice, setProductPrice] = useState('');
+  const [sellingPrice, setSellingPrice] = useState('');
+  const [mrp, setMrp] = useState('');
+  const [description, setDescription] = useState('');
   const [productCategory, setProductCategory] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -47,8 +49,8 @@ const AddProductForm: React.FC = () => {
         return;
       }
 
-      if (!productName || !productPrice || !productCategory) {
-        alert("Please fill all fields");
+      if (!productName || !sellingPrice || !productCategory || !description) {
+        alert("Please fill all required fields");
         return;
       }
 
@@ -60,14 +62,19 @@ const AddProductForm: React.FC = () => {
 
       console.log("Saving product to Firestore...");
       try {
-        await addDoc(collection(db, "products"), {
+        const productData: any = {
           name: productName,
-          price: Number(productPrice),
+          sellingPrice: Number(sellingPrice),
           category: productCategory,
+          description: description,
           image: imageUrl, // Legacy support
           images: [{ url: imageUrl, isPrimary: true }],
           createdAt: new Date()
-        });
+        };
+        if (mrp) {
+          productData.mrp = Number(mrp);
+        }
+        await addDoc(collection(db, "products"), productData);
         console.log("Product saved successfully to Firestore");
       } catch (firestoreError) {
         console.error("Firestore error:", firestoreError);
@@ -76,7 +83,9 @@ const AddProductForm: React.FC = () => {
 
       alert("Product uploaded successfully!");
       setProductName('');
-      setProductPrice('');
+      setSellingPrice('');
+      setMrp('');
+      setDescription('');
       setProductCategory('');
       setFile(null);
     } catch (error) {
@@ -138,10 +147,31 @@ const AddProductForm: React.FC = () => {
               <div>
                 <input
                   type="number"
-                  value={productPrice}
-                  onChange={(e) => setProductPrice(e.target.value)}
-                  placeholder="Product Price (₹)"
+                  value={mrp}
+                  onChange={(e) => setMrp(e.target.value)}
+                  placeholder="MRP (₹) - Optional"
+                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm mb-4"
+                  disabled={isUploading}
+                />
+              </div>
+              <div>
+                <input
+                  type="number"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  placeholder="Selling Price (₹)"
                   className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                  required
+                  disabled={isUploading}
+                />
+              </div>
+              <div>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Description"
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm mt-4 resize-none"
                   required
                   disabled={isUploading}
                 />
