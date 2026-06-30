@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AdminSidebar from './AdminSidebar';
 import AddProductForm from './AddProductForm';
-import AddCategoryForm from './AddCategoryForm';
+import DomainManagement from './DomainManagement';
 import ManageProducts from './ManageProducts';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../database/firebase';
@@ -68,7 +68,7 @@ const AdminDashboard: React.FC = () => {
       
       <div className="flex-1 w-full max-w-full overflow-x-hidden relative">
         {activeTab === 'add-product' && <AddProductForm />}
-        {activeTab === 'add-category' && <AddCategoryForm />}
+        {activeTab === 'domain-management' && <DomainManagement />}
         {activeTab === 'manage-products' && <ManageProducts />}
 
         <button 

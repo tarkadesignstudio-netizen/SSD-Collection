@@ -1,22 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../database/firebase';
-import { Image, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Loader2, EyeOff, Eye, PackageX, PackageCheck } from 'lucide-react';
 import type { Product } from '../data/products';
-import ManageImagesModal from './ManageImagesModal';
+import EditProductModal from './EditProductModal';
 
 const ManageProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const snapshot = await getDocs(collection(db, "products"));
       const p = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product));
-      // Sort by creation or just leave as is
+      
+      // Sort by creation date descending if available
+      p.sort((a, b) => {
+        const dateA = a.createdAt?.seconds || 0;
+        const dateB = b.createdAt?.seconds || 0;
+        return dateB - dateA;
+      });
+      
       setProducts(p);
     } catch (error) {
       console.error("Error fetching products", error);
@@ -30,7 +37,7 @@ const ManageProducts: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
+    if (window.confirm(`Are you sure you want to permanently delete '${name}'? This action cannot be undone.`)) {
       try {
         await deleteDoc(doc(db, "products", id));
         fetchProducts();
@@ -41,18 +48,42 @@ const ManageProducts: React.FC = () => {
     }
   };
 
-  const openManageImages = (prod: Product) => {
+  const toggleHide = async (product: Product) => {
+    try {
+      await updateDoc(doc(db, "products", product.id), {
+        hidden: !product.hidden
+      });
+      fetchProducts();
+    } catch (error) {
+      console.error("Error toggling hide", error);
+      alert("Failed to update visibility.");
+    }
+  };
+
+  const toggleOutOfStock = async (product: Product) => {
+    try {
+      await updateDoc(doc(db, "products", product.id), {
+        outOfStock: !product.outOfStock
+      });
+      fetchProducts();
+    } catch (error) {
+      console.error("Error toggling stock", error);
+      alert("Failed to update stock status.");
+    }
+  };
+
+  const openEditModal = (prod: Product) => {
     setSelectedProduct(prod);
-    setIsImagesModalOpen(true);
+    setIsEditModalOpen(true);
   };
 
   return (
     <div className="flex-1 px-4 md:px-8 lg:px-12 py-8 min-h-[calc(100vh-80px)] overflow-y-auto w-full">
-      <div className="max-w-6xl mx-auto w-full">
+      <div className="max-w-7xl mx-auto w-full">
         {/* Header Section */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[#2B2B2B] mb-2">Manage Products</h1>
-          <p className="text-[#7A7A7A] text-sm">View, edit, and manage all your products</p>
+          <p className="text-[#7A7A7A] text-sm">View, edit, hide, and manage all your products</p>
         </div>
 
         {/* Content */}
@@ -69,57 +100,82 @@ const ManageProducts: React.FC = () => {
                   <thead>
                     <tr className="border-b border-[#F3D6DC] text-[#7A7A7A] text-sm font-medium uppercase tracking-wider">
                       <th className="py-4 px-4">Product</th>
-                      <th className="py-4 px-4">Category</th>
+                      <th className="py-4 px-4">Domain / Category</th>
                       <th className="py-4 px-4">Selling Price</th>
+                      <th className="py-4 px-4 text-center">Status</th>
                       <th className="py-4 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {products.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-[#7A7A7A]">No products found.</td>
+                        <td colSpan={5} className="py-8 text-center text-[#7A7A7A]">No products found.</td>
                       </tr>
                     ) : (
                       products.map((product) => {
                         const primaryImage = product.images?.find(img => img.isPrimary)?.url || product.image || '';
                         
                         return (
-                          <tr key={product.id} className="border-b border-[#F3D6DC] hover:bg-[#FFF6F8] transition-colors">
+                          <tr key={product.id} className={`border-b border-[#F3D6DC] transition-colors ${product.hidden ? 'bg-gray-50 opacity-70' : 'hover:bg-[#FFF6F8]'}`}>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-[#F3D6DC]/50">
                                   {primaryImage ? (
                                     <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
                                   ) : (
                                     <div className="w-full h-full flex justify-center items-center text-xs text-gray-400">No Img</div>
                                   )}
                                 </div>
-                                <span className="font-medium text-[#2B2B2B]">{product.name}</span>
+                                <span className={`font-medium ${product.hidden ? 'text-gray-500' : 'text-[#2B2B2B]'}`}>{product.name}</span>
                               </div>
                             </td>
-                            <td className="py-4 px-4 text-[#7A7A7A]">{product.category}</td>
-                            <td className="py-4 px-4 font-semibold text-[#E75480]">₹{product.sellingPrice || product.price || 0}</td>
+                            <td className="py-4 px-4">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-[#E75480]">{product.domain || 'Unassigned'}</span>
+                                <span className="text-sm text-[#7A7A7A]">{product.category}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 font-semibold text-[#2B2B2B]">₹{product.sellingPrice || product.price || 0}</td>
+                            <td className="py-4 px-4 text-center">
+                              <div className="flex flex-col gap-1 items-center">
+                                {product.hidden && (
+                                  <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider bg-gray-200 px-2 py-0.5 rounded-full">Hidden</span>
+                                )}
+                                {product.outOfStock && (
+                                  <span className="text-[10px] uppercase font-bold text-orange-500 tracking-wider bg-orange-100 px-2 py-0.5 rounded-full">Out of Stock</span>
+                                )}
+                                {!product.hidden && !product.outOfStock && (
+                                  <span className="text-[10px] uppercase font-bold text-green-500 tracking-wider bg-green-100 px-2 py-0.5 rounded-full">Active</span>
+                                )}
+                              </div>
+                            </td>
                             <td className="py-4 px-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {/* Edit - optional for now, placeholder */}
+                              <div className="flex items-center justify-end gap-1">
                                 <button 
-                                  className="p-2 text-[#7A7A7A] hover:text-[#E75480] hover:bg-[#FDE2E8] rounded-xl transition-all"
+                                  onClick={() => toggleHide(product)}
+                                  className={`p-2 rounded-xl transition-all ${product.hidden ? 'text-gray-500 hover:bg-gray-200' : 'text-[#7A7A7A] hover:text-indigo-500 hover:bg-indigo-50'}`}
+                                  title={product.hidden ? "Unhide Product" : "Hide Product"}
+                                >
+                                  {product.hidden ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                                </button>
+                                <button 
+                                  onClick={() => toggleOutOfStock(product)}
+                                  className={`p-2 rounded-xl transition-all ${product.outOfStock ? 'text-orange-500 hover:bg-orange-100' : 'text-[#7A7A7A] hover:text-orange-500 hover:bg-orange-50'}`}
+                                  title={product.outOfStock ? "Mark In Stock" : "Mark Out of Stock"}
+                                >
+                                  {product.outOfStock ? <PackageCheck className="w-5 h-5" /> : <PackageX className="w-5 h-5" />}
+                                </button>
+                                <button 
+                                  className="p-2 text-[#7A7A7A] hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
                                   title="Edit Product"
-                                  onClick={() => alert("Edit product coming soon!")}
+                                  onClick={() => openEditModal(product)}
                                 >
                                   <Edit className="w-5 h-5" />
                                 </button>
                                 <button 
-                                  onClick={() => openManageImages(product)}
-                                  className="p-2 text-[#7A7A7A] hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-                                  title="Manage Images"
-                                >
-                                  <Image className="w-5 h-5" />
-                                </button>
-                                <button 
                                   onClick={() => handleDelete(product.id, product.name)}
                                   className="p-2 text-[#7A7A7A] hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                  title="Delete Product"
+                                  title="Permanently Delete"
                                 >
                                   <Trash2 className="w-5 h-5" />
                                 </button>
@@ -132,68 +188,17 @@ const ManageProducts: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-
-              {/* Mobile Card View */}
-              <div className="md:hidden flex flex-col space-y-4">
-                {products.length === 0 ? (
-                  <div className="py-8 text-center text-[#7A7A7A]">No products found.</div>
-                ) : (
-                  products.map((product) => {
-                    const primaryImage = product.images?.find(img => img.isPrimary)?.url || product.image || '';
-                    return (
-                      <div key={product.id} className="bg-white border border-[#F3D6DC] rounded-xl p-4 flex flex-col gap-3 shadow-sm">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                            {primaryImage ? (
-                              <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex justify-center items-center text-xs text-gray-400">No Img</div>
-                            )}
-                          </div>
-                          <div className="flex flex-col flex-1 h-16 justify-between py-0.5">
-                            <span className="font-medium text-[#2B2B2B] text-[13px] leading-tight line-clamp-2">{product.name}</span>
-                            <div className="flex justify-between items-center w-full">
-                              <span className="text-[10px] uppercase text-[#7A7A7A]">{product.category}</span>
-                              <span className="text-sm font-semibold text-[#E75480]">₹{product.sellingPrice || product.price || 0}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#F3D6DC]/50">
-                          <button 
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#7A7A7A] hover:text-[#E75480] hover:bg-[#FDE2E8] rounded-lg transition-all"
-                            onClick={() => alert("Edit product coming soon!")}
-                          >
-                            <Edit className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button 
-                            onClick={() => openManageImages(product)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#7A7A7A] hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
-                          >
-                            <Image className="w-3.5 h-3.5" /> Images
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(product.id, product.name)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#7A7A7A] hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
             </>
           )}
         </div>
       </div>
 
-      {isImagesModalOpen && selectedProduct && (
-        <ManageImagesModal 
-          isOpen={isImagesModalOpen} 
+      {isEditModalOpen && selectedProduct && (
+        <EditProductModal 
+          isOpen={isEditModalOpen} 
           product={selectedProduct} 
           onClose={() => {
-            setIsImagesModalOpen(false);
+            setIsEditModalOpen(false);
             setSelectedProduct(null);
           }}
           onUpdate={() => fetchProducts()}

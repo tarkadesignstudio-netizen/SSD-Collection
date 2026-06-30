@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, ShoppingBag, User, Menu, Settings, LogOut, X } from 'lucide-react';
 import logo from '../assets/Artboard 1 copy 3.png';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { isAdmin } from '../constants/auth';
 
 const Navbar: React.FC = () => {
   const { user, openModal, logout } = useAuth();
+  const { totalItems, toggleCart } = useCart();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -15,6 +17,19 @@ const Navbar: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchParams = new URLSearchParams(location.search);
+  const query = searchParams.get('search') || '';
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val) {
+      navigate(`/?search=${encodeURIComponent(val)}`, { replace: location.pathname === '/' });
+    } else {
+      navigate(location.pathname === '/' ? '/' : '/');
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -49,6 +64,8 @@ const Navbar: React.FC = () => {
             <input
               ref={searchInputRef}
               type="text"
+              value={query}
+              onChange={handleSearch}
               className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 text-[#2B2B2B] outline-none placeholder-gray-500"
               placeholder="Search..."
             />
@@ -77,8 +94,10 @@ const Navbar: React.FC = () => {
             </div>
             <input
               type="text"
+              value={query}
+              onChange={handleSearch}
               className="block w-full pl-8 sm:pl-10 pr-3 py-1.5 sm:py-2 border-transparent rounded-full bg-white/70 text-xs sm:text-sm placeholder-gray-500 focus:border-[#F3D6DC] focus:bg-white focus:ring-0 transition-colors duration-200 text-[#2B2B2B]"
-              placeholder="Search..."
+              placeholder="Search products..."
             />
           </div>
 
@@ -110,11 +129,16 @@ const Navbar: React.FC = () => {
             </a>
           </div>
           <div className="flex items-center space-x-3 sm:space-x-4">
-            <button className="relative text-[#2B2B2B] hover:text-[#E75480] transition-colors">
+            <button 
+              onClick={toggleCart}
+              className="relative text-[#2B2B2B] hover:text-[#E75480] transition-colors"
+            >
               <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-[#F7A8B8] text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
-                0
-              </span>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#F7A8B8] text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
+                  {totalItems}
+                </span>
+              )}
             </button>
             
             {/* Dynamic Profile Dropdown */}

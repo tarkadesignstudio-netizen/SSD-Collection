@@ -3,28 +3,33 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import AdminDashboard from './admin/AdminDashboard';
 import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 import AuthModal from './components/AuthModal';
+import CartSidebar from './components/CartSidebar';
 import AdminRoute from './admin/AdminRoute';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div className="font-sans min-h-screen bg-[#FFF5F7] text-[#2B2B2B]">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route 
-              path="/admin" 
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              } 
-            />
-          </Routes>
-          <AuthModal />
-        </div>
+        <CartProvider>
+          <div className="font-sans min-h-screen bg-[#FFF5F7] text-[#2B2B2B]">
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route 
+                path="/admin" 
+                element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                } 
+              />
+            </Routes>
+            <AuthModal />
+            <CartSidebar />
+          </div>
+        </CartProvider>
       </BrowserRouter>
     </AuthProvider>
   );

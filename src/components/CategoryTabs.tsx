@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Category } from '../data/categories';
 
 interface CategoryTabsProps {
@@ -9,14 +9,9 @@ interface CategoryTabsProps {
 }
 
 const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelectCategory, categories }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
-
-  const filteredCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -30,11 +25,11 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelectCat
     handleScroll();
     window.addEventListener('resize', handleScroll);
     return () => window.removeEventListener('resize', handleScroll);
-  }, [filteredCategories]);
+  }, [categories]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
-      const scrollAmount = 240;
+      const scrollAmount = 300;
       scrollContainerRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth',
@@ -43,60 +38,46 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelectCat
   };
 
   return (
-    <div className="w-full py-6 px-6 flex flex-col gap-8">
-      {/* Search Input */}
-      <div className="relative max-w-md mx-auto w-full">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-[#a1a1a1]" />
-        </div>
-        <input
-          type="text"
-          placeholder="Search categories..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border border-[#F3D6DC] rounded-full focus:outline-none focus:ring-2 focus:ring-[#F7A8B8] focus:border-transparent transition-all text-[#777777] placeholder-[#a1a1a1] shadow-sm bg-white"
-        />
-      </div>
-
-      {/* Category List */}
-      {filteredCategories.length > 0 ? (
+    <div className="w-full py-6 px-6 flex flex-col items-center">
+      {categories.length > 0 ? (
         <div className="relative w-full group">
           {/* Left Navigation Button */}
           {showLeftArrow && (
             <button
               onClick={() => scroll('left')}
-              className="hidden md:flex absolute -left-4 top-[40%] -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-[#F3D6DC] text-[#777777] items-center justify-center hover:text-[#E75480] hover:border-[#F7A8B8] hover:shadow-lg transition-all"
+              className="hidden md:flex absolute -left-6 top-[45%] -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-[#F3D6DC] text-[#777777] items-center justify-center hover:text-[#E75480] hover:border-[#F7A8B8] hover:shadow-xl transition-all"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-8 h-8" />
             </button>
           )}
 
           <div 
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="w-full overflow-x-auto scrollbar-hide pb-4 px-2 select-none"
+            className="w-full overflow-x-auto scrollbar-hide pb-6 px-4 select-none"
           >
-            <div className="flex space-x-8 items-center justify-start min-w-max">
-              {filteredCategories.map((category) => {
+            <div className="flex space-x-10 items-center justify-start min-w-max">
+              {categories.map((category) => {
                 const isActive = activeCategory === category.name;
+                
                 return (
                   <button
                     key={category.name}
                     onClick={() => onSelectCategory(category.name)}
-                    className="flex flex-col items-center gap-3 shrink-0 group focus:outline-none"
+                    className="flex flex-col items-center gap-4 shrink-0 group focus:outline-none"
                   >
                     <div
-                      className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
                         isActive
-                          ? 'border-[3px] border-[#F7A8B8] shadow-md scale-105 p-1'
-                          : 'border-2 border-transparent hover:border-[#F3D6DC] hover:shadow-sm hover:scale-105 p-1'
+                          ? 'border-4 border-[#F7A8B8] shadow-lg scale-105 p-1 bg-gradient-to-br from-white to-[#FFF5F7]'
+                          : 'border-2 border-transparent bg-white hover:border-[#F3D6DC] hover:shadow-md hover:scale-105 p-1'
                       }`}
                     >
-                      <div className="w-full h-full rounded-full overflow-hidden bg-[#FFF5F7] flex items-center justify-center">
+                      <div className="w-full h-full rounded-full overflow-hidden bg-[#FFF5F7] flex items-center justify-center shadow-inner">
                         {category.isAll ? (
                           <LayoutGrid
                             strokeWidth={1.5}
-                            className={`w-8 h-8 transition-colors ${
+                            className={`w-12 h-12 transition-colors ${
                               isActive ? 'text-[#E75480]' : 'text-[#777777] group-hover:text-[#E75480]'
                             }`}
                           />
@@ -110,7 +91,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelectCat
                         ) : (
                           <LayoutGrid
                             strokeWidth={1.5}
-                            className={`w-8 h-8 transition-colors ${
+                            className={`w-12 h-12 transition-colors ${
                               isActive ? 'text-[#E75480]' : 'text-[#777777] group-hover:text-[#E75480]'
                             }`}
                           />
@@ -118,7 +99,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelectCat
                       </div>
                     </div>
                     <span
-                      className={`text-sm font-medium transition-colors duration-200 ${
+                      className={`text-base font-bold tracking-wide transition-colors duration-200 ${
                         isActive ? 'text-[#E75480]' : 'text-[#777777] group-hover:text-[#E75480]'
                       }`}
                     >
@@ -131,18 +112,18 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelectCat
           </div>
 
           {/* Right Navigation Button */}
-          {showRightArrow && (
+          {showRightArrow && categories.length > 0 && (
             <button
               onClick={() => scroll('right')}
-              className="hidden md:flex absolute -right-4 top-[40%] -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-[#F3D6DC] text-[#777777] items-center justify-center hover:text-[#E75480] hover:border-[#F7A8B8] hover:shadow-lg transition-all"
+              className="hidden md:flex absolute -right-6 top-[45%] -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-[#F3D6DC] text-[#777777] items-center justify-center hover:text-[#E75480] hover:border-[#F7A8B8] hover:shadow-xl transition-all"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-8 h-8" />
             </button>
           )}
         </div>
       ) : (
-        <div className="w-full text-center py-8 text-[#777777] text-sm">
-          No categories found.
+        <div className="w-full text-center py-4 text-[#777777] text-sm">
+          No categories found for this domain.
         </div>
       )}
     </div>

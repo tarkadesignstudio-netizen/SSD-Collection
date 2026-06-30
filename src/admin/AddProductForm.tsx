@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, X, Loader2 } from 'lucide-react';
 import type { Category } from '../data/categories';
 import { useAuth } from '../context/AuthContext';
 import { isAdmin } from '../constants/auth';
 import { uploadToCloudinary } from '../utils/cloudinary';
 import { addDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../database/firebase';
+
+interface SelectedFile {
+  file: File;
+  preview: string;
+}
 
 const AddProductForm: React.FC = () => {
   const { user } = useAuth();
@@ -15,7 +20,7 @@ const AddProductForm: React.FC = () => {
   const [description, setDescription] = useState('');
   const [productCategory, setProductCategory] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<SelectedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
@@ -35,15 +40,34 @@ const AddProductForm: React.FC = () => {
     loadCategories();
   }, []);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      const newFiles = selectedFiles.map(file => ({
+        file,
+        preview: URL.createObjectURL(file)
+      }));
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (indexToRemove: number) => {
+    setFiles(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[indexToRemove].preview);
+      updated.splice(indexToRemove, 1);
+      return updated;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (!file) {
-        alert("No file selected");
+      if (files.length === 0) {
+        alert("Please select at least one image");
         return;
       }
 
-      console.log("Logged user:", user);
       if (!isAdmin(user)) {
         alert("Unauthorized access");
         return;
@@ -56,9 +80,19 @@ const AddProductForm: React.FC = () => {
 
       setIsUploading(true);
 
-      console.log("Uploading image...");
-      const imageUrl = await uploadToCloudinary(file);
-      console.log("Cloudinary URL:", imageUrl);
+      // 1. Upload all images concurrently
+      console.log(`Uploading ${files.length} images...`);
+      const uploadPromises = files.map(f => uploadToCloudinary(f.file));
+      const imageUrls = await Promise.all(uploadPromises);
+
+      const productImages = imageUrls.map((url, idx) => ({
+        url,
+        isPrimary: idx === 0 // First image is automatically primary
+      }));
+
+      // 2. Determine Domain automatically
+      const selectedCategoryObj = categories.find(c => c.name === productCategory);
+      const domainName = selectedCategoryObj?.domain || '';
 
       console.log("Saving product to Firestore...");
       try {
@@ -66,9 +100,12 @@ const AddProductForm: React.FC = () => {
           name: productName,
           sellingPrice: Number(sellingPrice),
           category: productCategory,
+          domain: domainName, // Automatically assigned domain
           description: description,
-          image: imageUrl, // Legacy support
-          images: [{ url: imageUrl, isPrimary: true }],
+          image: imageUrls[0], // Legacy support for single image components
+          images: productImages,
+          hidden: false,
+          outOfStock: false,
           createdAt: new Date()
         };
         if (mrp) {
@@ -78,16 +115,18 @@ const AddProductForm: React.FC = () => {
         console.log("Product saved successfully to Firestore");
       } catch (firestoreError) {
         console.error("Firestore error:", firestoreError);
-        throw firestoreError; // rethrow to be caught by main catch block
+        throw firestoreError; 
       }
 
       alert("Product uploaded successfully!");
+      // Reset form
       setProductName('');
       setSellingPrice('');
       setMrp('');
       setDescription('');
       setProductCategory('');
-      setFile(null);
+      files.forEach(f => URL.revokeObjectURL(f.preview));
+      setFiles([]);
     } catch (error) {
       console.error("Upload failed:", error);
       alert("Failed to upload product:\n" + (error instanceof Error ? error.message : JSON.stringify(error)));
@@ -96,110 +135,153 @@ const AddProductForm: React.FC = () => {
     }
   };
 
+  // Group categories by domain for better UI organization (optional but good for UX)
+  const groupedCategories = categories.reduce((acc, cat) => {
+    const d = cat.domain || 'Uncategorized';
+    if (!acc[d]) acc[d] = [];
+    acc[d].push(cat);
+    return acc;
+  }, {} as Record<string, Category[]>);
+
   return (
     <div className="flex-1 px-4 md:px-8 lg:px-12 py-8 min-h-[calc(100vh-80px)] overflow-y-auto w-full">
-      <div className="max-w-3xl mx-auto w-full">
+      <div className="max-w-4xl mx-auto w-full">
         {/* Header Section */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[#2B2B2B] mb-2">Add Product</h1>
-          <p className="text-[#7A7A7A] text-sm">Upload and manage your products easily</p>
+          <p className="text-[#7A7A7A] text-sm">Upload a new product with multiple images</p>
         </div>
 
         {/* Center Card */}
         <div 
-          className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-xl mx-auto"
+          className="bg-white rounded-2xl p-6 md:p-8 w-full mx-auto"
           style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}
         >
-          <h2 className="text-lg font-semibold text-[#2B2B2B] mb-6">Add Product Form</h2>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            
+            {/* Image Upload Area */}
+            <div>
+              <h3 className="text-sm font-semibold text-[#2B2B2B] mb-3 uppercase tracking-wide">Product Images</h3>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {files.map((file, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-[#F3D6DC] group">
+                    <img src={file.preview} alt={`preview ${idx}`} className="w-full h-full object-cover" />
+                    {idx === 0 && (
+                      <div className="absolute top-2 left-2 bg-[#E75480] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        Primary
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      disabled={isUploading}
+                      className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-50 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Image Upload Box */}
-            <div className="relative group">
-              <input 
-                type="file" 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                accept="image/*"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                disabled={isUploading}
-              />
-              <div className="border-2 border-dashed border-[#F3D6DC] rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors group-hover:bg-[#FFF6F8]">
-                <div className="bg-[#FDE2E8]/50 p-3 rounded-full mb-4">
-                  <Upload className="h-8 w-8 text-[#E75480]" />
+                {/* Upload Button */}
+                <div className="relative aspect-square">
+                  <input 
+                    type="file" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed" 
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileChange}
+                    disabled={isUploading}
+                  />
+                  <div className="w-full h-full border-2 border-dashed border-[#F3D6DC] rounded-xl flex flex-col items-center justify-center text-center transition-colors hover:bg-[#FFF6F8] bg-gray-50/50">
+                    <div className="bg-white p-2 rounded-full mb-2 shadow-sm">
+                      <Upload className="h-5 w-5 text-[#E75480]" />
+                    </div>
+                    <p className="text-[#2B2B2B] font-medium text-xs">Add Images</p>
+                  </div>
                 </div>
-                <p className="text-[#2B2B2B] font-medium text-sm mb-1">{file ? file.name : "Drag & Drop Product Image Here"}</p>
-                <p className="text-[#7A7A7A] text-xs">{file ? "Click to change" : "or Click to Browse"}</p>
               </div>
             </div>
 
             {/* Input Fields */}
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="text"
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="Product Name"
-                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                  required
-                  disabled={isUploading}
-                />
-              </div>
-              <div>
-                <input
-                  type="number"
-                  value={mrp}
-                  onChange={(e) => setMrp(e.target.value)}
-                  placeholder="MRP (₹) - Optional"
-                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm mb-4"
-                  disabled={isUploading}
-                />
-              </div>
-              <div>
-                <input
-                  type="number"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                  placeholder="Selling Price (₹)"
-                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                  required
-                  disabled={isUploading}
-                />
-              </div>
-              <div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#2B2B2B] mb-3 uppercase tracking-wide">Product Details</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    placeholder="Product Name"
+                    className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                    required
+                    disabled={isUploading}
+                  />
+                  <select
+                    value={productCategory}
+                    onChange={(e) => setProductCategory(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                    required
+                    disabled={isUploading}
+                  >
+                    <option value="" disabled>Select Category</option>
+                    {Object.entries(groupedCategories).map(([domain, cats]) => (
+                      <optgroup key={domain} label={`Domain: ${domain}`}>
+                        {cats.map((category, index) => (
+                          <option key={index} value={category.name}>{category.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="number"
+                    value={mrp}
+                    onChange={(e) => setMrp(e.target.value)}
+                    placeholder="MRP (₹) - Optional"
+                    className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                    disabled={isUploading}
+                  />
+                  <input
+                    type="number"
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value)}
+                    placeholder="Selling Price (₹)"
+                    className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                    required
+                    disabled={isUploading}
+                  />
+                </div>
+                
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Description"
                   rows={4}
-                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm mt-4 resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm resize-none"
                   required
                   disabled={isUploading}
                 />
               </div>
-              <div>
-                <select
-                  value={productCategory}
-                  onChange={(e) => setProductCategory(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                  required
-                  disabled={isUploading}
-                >
-                  <option value="" disabled>Select Category</option>
-                  {categories.map((category, index) => (
-                    <option key={index} value={category.name}>{category.name}</option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             {/* Buttons */}
-            <div className="flex flex-col gap-4 pt-2">
+            <div className="pt-4">
               <button
                 type="submit"
-                disabled={isUploading}
-                className="w-full bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white font-medium py-3 px-6 rounded-xl shadow-sm hover:scale-[1.02] transition-transform duration-200 text-sm disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                disabled={isUploading || files.length === 0}
+                className="w-full bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white font-semibold py-4 px-6 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200 text-sm disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isUploading ? "Uploading..." : "Upload Product"}
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  "Upload Product"
+                )}
               </button>
             </div>
           </form>

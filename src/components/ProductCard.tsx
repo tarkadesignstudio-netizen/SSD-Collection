@@ -22,6 +22,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
       onClick={onClick}
     >
       <div className="relative w-full aspect-square mb-4 overflow-hidden rounded-xl bg-neutral-100">
+        {product.outOfStock && (
+          <div className="absolute top-2 right-2 z-10 bg-black/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">
+            Out of Stock
+          </div>
+        )}
         <img
           src={primaryImage}
           alt={product.name}
