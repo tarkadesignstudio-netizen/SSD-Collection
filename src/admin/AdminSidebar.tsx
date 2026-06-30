@@ -16,9 +16,8 @@ interface AdminSidebarProps {
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, onTabChange, isOpen = false }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'add-category', label: 'Add Category', icon: PlusCircle },
+    { id: 'domain-management', label: 'Domain Management', icon: PlusCircle },
     { id: 'add-product', label: 'Add Product', icon: PlusCircle },
-    { id: 'remove-product', label: 'Remove/Hide Product', icon: Trash2 },
     { id: 'manage-products', label: 'Manage Products', icon: Settings },
   ];
 

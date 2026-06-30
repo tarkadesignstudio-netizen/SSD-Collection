@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product } from '../data/products';
+import { useCart } from '../context/CartContext';
 
 interface ProductModalProps {
   product: Product;
@@ -23,6 +24,7 @@ const dummyImages = [
 
 const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const { addToCart } = useCart();
 
   const images = React.useMemo(() => {
     if (product.images?.length) {
@@ -127,6 +129,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
           <h2 className="text-3xl font-bold text-[#2B2B2B] mb-4 leading-tight">
             {product.name}
           </h2>
+          {product.outOfStock && (
+            <div className="inline-flex w-fit bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4">
+              Out of Stock
+            </div>
+          )}
           <div className="flex flex-col gap-1 mb-6">
             {product.mrp && (
               <span className="text-lg text-gray-400 line-through">
@@ -139,16 +146,34 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
           </div>
 
           {product.description && (
-            <p className="text-[#555555] mb-6 leading-relaxed whitespace-pre-wrap">
-              {product.description}
-            </p>
+            <div className="mb-6 flex flex-col max-h-[30vh]">
+              <h3 className="text-sm font-bold text-[#2B2B2B] mb-2 uppercase tracking-wide">
+                Description
+              </h3>
+              <div className="overflow-y-auto pr-3 pb-2 custom-scrollbar">
+                <p className="text-[#555555] text-[15px] leading-relaxed whitespace-pre-wrap">
+                  {product.description}
+                </p>
+              </div>
+            </div>
           )}
 
           <div className="w-12 h-1 bg-[#F3D6DC] rounded-full mb-10"></div>
 
           {/* Action buttons */}
-          <button className="w-full bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white font-medium py-4 px-8 rounded-xl shadow-md shadow-[#F48CA8]/30 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02] transition-all duration-300 text-lg flex items-center justify-center gap-2 focus:outline-none">
-            Add to Cart
+          <button 
+            disabled={product.outOfStock}
+            onClick={() => {
+              addToCart(product);
+              onClose();
+            }}
+            className={`w-full font-medium py-4 px-8 rounded-xl transition-all duration-300 text-lg flex items-center justify-center gap-2 focus:outline-none ${
+              product.outOfStock 
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white shadow-md shadow-[#F48CA8]/30 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02]'
+            }`}
+          >
+            {product.outOfStock ? "Out of Stock" : "Add to Cart"}
           </button>
         </div>
       </div>

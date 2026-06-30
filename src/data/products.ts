@@ -16,12 +16,15 @@ export interface Product {
   id: string;
   name: string;
   category: string;
+  domain?: string; // Automatically inferred from category
   price?: number; // legacy support
   sellingPrice?: number;
   mrp?: number;
   image?: string; // legacy support
   images?: ProductImage[];
   description?: string;
+  hidden?: boolean;
+  outOfStock?: boolean;
   createdAt?: unknown;
 }
 
