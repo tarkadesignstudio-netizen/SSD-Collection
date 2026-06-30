@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, LayoutGrid, ChevronLeft, ChevronRight, Store } from 'lucide-react';
+import { LayoutGrid, ChevronLeft, ChevronRight, Store } from 'lucide-react';
 import type { Domain } from '../data/categories';
 
 interface DomainTabsProps {
