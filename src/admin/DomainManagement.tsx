@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Upload, CheckCircle2, Edit, Trash2, Loader2, X, Save, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Edit, Trash2, Loader2, X, Save, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isAdmin } from '../constants/auth';
 import { uploadToCloudinary } from '../utils/cloudinary';

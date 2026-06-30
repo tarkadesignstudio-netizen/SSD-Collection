@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import IMG1 from "../assets/IMG1.jpg";
 import IMG2 from "../assets/IMG2.jpg";
 import IMG3 from "../assets/IMG3.jpg";
@@ -25,7 +26,7 @@ export interface Product {
   description?: string;
   hidden?: boolean;
   outOfStock?: boolean;
-  createdAt?: unknown;
+  createdAt?: Timestamp;
 }
 
 export const PRODUCTS: Product[] = [
