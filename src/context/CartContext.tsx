@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { Product } from '../data/products';
+import type { Product, ProductVariant } from '../data/products';
 
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedVariant?: ProductVariant;
 }
 
 interface CartContextType {
@@ -12,9 +13,9 @@ interface CartContextType {
   isCartOpen: boolean;
   totalItems: number;
   subtotal: number;
-  addToCart: (product: Product) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addToCart: (product: Product, variant?: ProductVariant) => void;
+  removeFromCart: (productId: string, variantId?: string) => void;
+  updateQuantity: (productId: string, variantId: string | undefined, quantity: number) => void;
   clearCart: () => void;
   setIsCartOpen: (isOpen: boolean) => void;
   toggleCart: () => void;
@@ -39,35 +40,42 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('shopping_cart', JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, variant?: ProductVariant) => {
     setItems(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
+      const existing = prev.find(item => 
+        item.product.id === product.id && item.selectedVariant?.id === variant?.id
+      );
       if (existing) {
         return prev.map(item => 
-          item.product.id === product.id 
+          item.product.id === product.id && item.selectedVariant?.id === variant?.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, selectedVariant: variant }];
     });
     
     // Show toast instead of opening the cart
-    setToastMessage(`✓ ${product.name} added to cart successfully.`);
+    const variantText = variant ? ` (${variant.quantity} ${variant.unit})` : '';
+    setToastMessage(`✓ ${product.name}${variantText} added to cart successfully.`);
     setTimeout(() => {
       setToastMessage(null);
     }, 3000);
   };
 
-  const removeFromCart = (productId: string) => {
-    setItems(prev => prev.filter(item => item.product.id !== productId));
+  const removeFromCart = (productId: string, variantId?: string) => {
+    setItems(prev => prev.filter(item => 
+      !(item.product.id === productId && item.selectedVariant?.id === variantId)
+    ));
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (productId: string, variantId: string | undefined, quantity: number) => {
     if (quantity < 1) return;
     setItems(prev => 
       prev.map(item => 
-        item.product.id === productId ? { ...item, quantity } : item
+        (item.product.id === productId && item.selectedVariant?.id === variantId)
+          ? { ...item, quantity } 
+          : item
       )
     );
   };
@@ -78,7 +86,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => {
-    const price = item.product.sellingPrice || item.product.price || 0;
+    const price = item.selectedVariant?.sellingPrice || item.product.sellingPrice || item.product.price || 0;
     return sum + (price * item.quantity);
   }, 0);
 
