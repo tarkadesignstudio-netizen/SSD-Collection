@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Trash2, Star, Loader2, Save } from 'lucide-react';
+import { X, Upload, Trash2, Star, Loader2, Save, Plus } from 'lucide-react';
 import { doc, updateDoc, getDocs, collection } from 'firebase/firestore';
 import { db } from '../database/firebase';
 import { uploadToCloudinary } from '../utils/cloudinary';
-import type { Product, ProductImage } from '../data/products';
+import type { Product, ProductImage, ProductVariant } from '../data/products';
 import type { Category } from '../data/categories';
 
 interface EditProductModalProps {
@@ -21,6 +21,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, product, on
   const [productCategory, setProductCategory] = useState(product.category || '');
   const [hidden, setHidden] = useState(product.hidden || false);
   const [outOfStock, setOutOfStock] = useState(product.outOfStock || false);
+  const [hasVariants, setHasVariants] = useState(product.hasVariants || false);
+  const [variants, setVariants] = useState<ProductVariant[]>(
+    product.variants ? product.variants.map(v => ({ ...v })) : []
+  );
   
   const [categories, setCategories] = useState<Category[]>([]);
   
@@ -109,6 +113,20 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, product, on
     setImages(updatedImages);
   };
 
+  const addVariant = () => {
+    setVariants([...variants, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'ml', sellingPrice: 0, mrp: 0, outOfStock: false }]);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const updateVariant = (index: number, field: keyof ProductVariant, value: any) => {
+    const updated = [...variants];
+    updated[index] = { ...updated[index], [field]: value };
+    setVariants(updated);
+  };
+
   // --- SAVE PRODUCT ---
 
   const handleSave = async (e: React.FormEvent) => {
@@ -116,22 +134,50 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, product, on
     setIsSaving(true);
     
     try {
+      if (hasVariants && variants.length === 0) {
+        alert("Please add at least one variant");
+        setIsSaving(false);
+        return;
+      }
+
+      if (!hasVariants && !sellingPrice) {
+        alert("Please enter a selling price");
+        setIsSaving(false);
+        return;
+      }
+
       // Find the domain automatically from the chosen category
       const selectedCategoryObj = categories.find(c => c.name === productCategory);
       const updatedDomain = selectedCategoryObj?.domain || product.domain || '';
 
+      const finalSellingPrice = hasVariants ? Number(variants[0].sellingPrice) : Number(sellingPrice);
+      const finalMrp = hasVariants ? (variants[0].mrp ? Number(variants[0].mrp) : undefined) : (mrp ? Number(mrp) : undefined);
+
+      const finalVariants = variants.map(v => ({
+        ...v,
+        sellingPrice: Number(v.sellingPrice),
+        mrp: v.mrp ? Number(v.mrp) : undefined
+      }));
+
       const updatedData: Partial<Product> = {
         name: productName,
-        sellingPrice: Number(sellingPrice),
+        sellingPrice: finalSellingPrice,
         category: productCategory,
         domain: updatedDomain, // Automatically updated
         description: description,
         images: images,
         hidden: hidden,
-        outOfStock: outOfStock
+        outOfStock: outOfStock,
+        hasVariants: hasVariants,
       };
 
-      if (mrp) updatedData.mrp = Number(mrp);
+      if (finalMrp !== undefined) {
+        updatedData.mrp = finalMrp;
+      }
+
+      if (hasVariants) {
+        updatedData.variants = finalVariants;
+      }
 
       // Legacy fallback
       if (images.length > 0) {
@@ -243,27 +289,123 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, product, on
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-[#7A7A7A] mb-1">Selling Price (₹)</label>
-                    <input
-                      type="number"
-                      value={sellingPrice}
-                      onChange={(e) => setSellingPrice(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#F3D6DC] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                      required
+                <div className="flex items-center gap-3 py-2">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={hasVariants}
+                      onChange={(e) => setHasVariants(e.target.checked)}
+                      disabled={isUploading}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[#7A7A7A] mb-1">MRP (₹)</label>
-                    <input
-                      type="number"
-                      value={mrp}
-                      onChange={(e) => setMrp(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#F3D6DC] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                    />
-                  </div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#F48CA8]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E75480]"></div>
+                  </label>
+                  <span className="text-sm font-medium text-[#2B2B2B]">Enable Product Variants</span>
                 </div>
+
+                {!hasVariants ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-[#7A7A7A] mb-1">Selling Price (₹)</label>
+                      <input
+                        type="number"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#F3D6DC] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                        required={!hasVariants}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[#7A7A7A] mb-1">MRP (₹)</label>
+                      <input
+                        type="number"
+                        value={mrp}
+                        onChange={(e) => setMrp(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#F3D6DC] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 border border-[#F3D6DC] rounded-xl p-4 bg-gray-50/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-[#2B2B2B]">Variant Management</h4>
+                      <button
+                        type="button"
+                        onClick={addVariant}
+                        disabled={isUploading}
+                        className="flex items-center gap-1 text-xs font-bold text-[#E75480] bg-[#FFF5F7] px-3 py-1.5 rounded-lg hover:bg-[#F3D6DC] transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Variant
+                      </button>
+                    </div>
+                    {variants.length === 0 ? (
+                      <p className="text-xs text-gray-500 text-center py-4">No variants added. Click "Add Variant" to create one.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {variants.map((v, idx) => (
+                          <div key={v.id || idx} className="flex flex-wrap gap-2 items-start bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative pt-4 md:pt-3">
+                            <button
+                              type="button"
+                              onClick={() => removeVariant(idx)}
+                              disabled={isUploading}
+                              className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 rounded-full p-1 hover:bg-red-50 transition-colors shadow-sm"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="text"
+                              value={v.name || ''}
+                              onChange={(e) => updateVariant(idx, 'name', e.target.value)}
+                              placeholder="Name (e.g. Small)"
+                              className="w-full md:w-auto flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                              disabled={isUploading}
+                            />
+                            <div className="flex w-full md:w-auto gap-2">
+                              <input
+                                type="number"
+                                value={v.quantity || ''}
+                                onChange={(e) => updateVariant(idx, 'quantity', Number(e.target.value))}
+                                placeholder="Qty"
+                                className="w-20 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                                required
+                              />
+                              <input
+                                type="text"
+                                value={v.unit || ''}
+                                onChange={(e) => updateVariant(idx, 'unit', e.target.value)}
+                                placeholder="Unit"
+                                className="w-20 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                                required
+                              />
+                            </div>
+                            <div className="flex w-full md:w-auto gap-2">
+                              <input
+                                type="number"
+                                value={v.mrp || ''}
+                                onChange={(e) => updateVariant(idx, 'mrp', Number(e.target.value))}
+                                placeholder="MRP"
+                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                              />
+                              <input
+                                type="number"
+                                value={v.sellingPrice || ''}
+                                onChange={(e) => updateVariant(idx, 'sellingPrice', Number(e.target.value))}
+                                placeholder="Selling Price"
+                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                                required
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-medium text-[#7A7A7A] mb-1">Category</label>

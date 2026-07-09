@@ -13,6 +13,16 @@ export interface ProductImage {
   isPrimary: boolean;
 }
 
+export interface ProductVariant {
+  id: string;
+  name?: string;
+  quantity: number;
+  unit: string;
+  mrp?: number;
+  sellingPrice: number;
+  outOfStock?: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -27,6 +37,8 @@ export interface Product {
   hidden?: boolean;
   outOfStock?: boolean;
   createdAt?: Timestamp;
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
 }
 
 export const PRODUCTS: Product[] = [

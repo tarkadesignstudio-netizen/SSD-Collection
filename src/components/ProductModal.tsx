@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Product } from '../data/products';
+import type { Product, ProductVariant } from '../data/products';
 import { useCart } from '../context/CartContext';
 
 interface ProductModalProps {
@@ -24,7 +24,16 @@ const dummyImages = [
 
 const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined);
   const { addToCart } = useCart();
+
+  useEffect(() => {
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      setSelectedVariant(product.variants[0]);
+    } else {
+      setSelectedVariant(undefined);
+    }
+  }, [product]);
 
   const images = React.useMemo(() => {
     if (product.images?.length) {
@@ -34,6 +43,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
     }
     return product.image ? [product.image] : dummyImages;
   }, [product]);
+
+  const displayPrice = selectedVariant?.sellingPrice || product.sellingPrice || product.price || 0;
+  const displayMrp = selectedVariant?.mrp || product.mrp;
+  const displayStock = selectedVariant?.outOfStock !== undefined ? selectedVariant.outOfStock : product.outOfStock;
 
   // Prevent background scroll
   useEffect(() => {
@@ -129,19 +142,43 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
           <h2 className="text-3xl font-bold text-[#2B2B2B] mb-4 leading-tight">
             {product.name}
           </h2>
-          {product.outOfStock && (
+          {displayStock && (
             <div className="inline-flex w-fit bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4">
               Out of Stock
             </div>
           )}
+          
+          {product.hasVariants && product.variants && product.variants.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-[#2B2B2B] mb-3 uppercase tracking-wide">
+                Choose Size
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {product.variants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    onClick={() => setSelectedVariant(variant)}
+                    className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                      selectedVariant?.id === variant.id
+                        ? 'border-[#E75480] bg-[#FFF5F7] text-[#E75480] shadow-sm'
+                        : 'border-gray-200 text-gray-600 hover:border-[#F48CA8] hover:text-[#F48CA8]'
+                    }`}
+                  >
+                    {variant.name || `${variant.quantity} ${variant.unit}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1 mb-6">
-            {product.mrp && (
+            {displayMrp && (
               <span className="text-lg text-gray-400 line-through">
-                {formatPrice(product.mrp)}
+                {formatPrice(displayMrp)}
               </span>
             )}
             <div className="text-2xl font-semibold text-[#E75480]">
-              {formatPrice(product.sellingPrice || product.price || 0)}
+              {formatPrice(displayPrice)}
             </div>
           </div>
 
@@ -162,18 +199,18 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
 
           {/* Action buttons */}
           <button 
-            disabled={product.outOfStock}
+            disabled={displayStock}
             onClick={() => {
-              addToCart(product);
+              addToCart(product, selectedVariant);
               onClose();
             }}
             className={`w-full font-medium py-4 px-8 rounded-xl transition-all duration-300 text-lg flex items-center justify-center gap-2 focus:outline-none ${
-              product.outOfStock 
+              displayStock 
                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                 : 'bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white shadow-md shadow-[#F48CA8]/30 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02]'
             }`}
           >
-            {product.outOfStock ? "Out of Stock" : "Add to Cart"}
+            {displayStock ? "Out of Stock" : "Add to Cart"}
           </button>
         </div>
       </div>

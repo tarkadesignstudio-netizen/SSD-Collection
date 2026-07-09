@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2, Plus } from 'lucide-react';
 import type { Category } from '../data/categories';
+import type { ProductVariant } from '../data/products';
 import { useAuth } from '../context/AuthContext';
 import { isAdmin } from '../constants/auth';
 import { uploadToCloudinary } from '../utils/cloudinary';
@@ -19,6 +20,8 @@ const AddProductForm: React.FC = () => {
   const [mrp, setMrp] = useState('');
   const [description, setDescription] = useState('');
   const [productCategory, setProductCategory] = useState('');
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<Omit<ProductVariant, 'id'>[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -60,6 +63,20 @@ const AddProductForm: React.FC = () => {
     });
   };
 
+  const addVariant = () => {
+    setVariants([...variants, { name: '', quantity: 1, unit: 'ml', sellingPrice: 0, mrp: 0, outOfStock: false }]);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const updateVariant = (index: number, field: keyof Omit<ProductVariant, 'id'>, value: any) => {
+    const updated = [...variants];
+    updated[index] = { ...updated[index], [field]: value };
+    setVariants(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -73,8 +90,18 @@ const AddProductForm: React.FC = () => {
         return;
       }
 
-      if (!productName || !sellingPrice || !productCategory || !description) {
+      if (!productName || !productCategory || !description) {
         alert("Please fill all required fields");
+        return;
+      }
+
+      if (hasVariants && variants.length === 0) {
+        alert("Please add at least one variant");
+        return;
+      }
+
+      if (!hasVariants && !sellingPrice) {
+        alert("Please enter a selling price");
         return;
       }
 
@@ -94,11 +121,21 @@ const AddProductForm: React.FC = () => {
       const selectedCategoryObj = categories.find(c => c.name === productCategory);
       const domainName = selectedCategoryObj?.domain || '';
 
+      const finalSellingPrice = hasVariants ? Number(variants[0].sellingPrice) : Number(sellingPrice);
+      const finalMrp = hasVariants ? (variants[0].mrp ? Number(variants[0].mrp) : undefined) : (mrp ? Number(mrp) : undefined);
+      
+      const finalVariants = variants.map(v => ({
+        ...v,
+        id: crypto.randomUUID(),
+        sellingPrice: Number(v.sellingPrice),
+        mrp: v.mrp ? Number(v.mrp) : undefined
+      }));
+
       console.log("Saving product to Firestore...");
       try {
         const productData: any = {
           name: productName,
-          sellingPrice: Number(sellingPrice),
+          sellingPrice: finalSellingPrice,
           category: productCategory,
           domain: domainName, // Automatically assigned domain
           description: description,
@@ -108,9 +145,16 @@ const AddProductForm: React.FC = () => {
           outOfStock: false,
           createdAt: new Date()
         };
-        if (mrp) {
-          productData.mrp = Number(mrp);
+        
+        if (finalMrp) {
+          productData.mrp = finalMrp;
         }
+
+        if (hasVariants) {
+          productData.hasVariants = true;
+          productData.variants = finalVariants;
+        }
+
         await addDoc(collection(db, "products"), productData);
         console.log("Product saved successfully to Firestore");
       } catch (firestoreError) {
@@ -125,6 +169,8 @@ const AddProductForm: React.FC = () => {
       setMrp('');
       setDescription('');
       setProductCategory('');
+      setHasVariants(false);
+      setVariants([]);
       files.forEach(f => URL.revokeObjectURL(f.preview));
       setFiles([]);
     } catch (error) {
@@ -235,25 +281,121 @@ const AddProductForm: React.FC = () => {
                   </select>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    value={mrp}
-                    onChange={(e) => setMrp(e.target.value)}
-                    placeholder="MRP (₹) - Optional"
-                    className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                    disabled={isUploading}
-                  />
-                  <input
-                    type="number"
-                    value={sellingPrice}
-                    onChange={(e) => setSellingPrice(e.target.value)}
-                    placeholder="Selling Price (₹)"
-                    className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
-                    required
-                    disabled={isUploading}
-                  />
+                <div className="flex items-center gap-3 py-2">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={hasVariants}
+                      onChange={(e) => setHasVariants(e.target.checked)}
+                      disabled={isUploading}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#F48CA8]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E75480]"></div>
+                  </label>
+                  <span className="text-sm font-medium text-[#2B2B2B]">Enable Product Variants</span>
                 </div>
+
+                {!hasVariants ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="number"
+                      value={mrp}
+                      onChange={(e) => setMrp(e.target.value)}
+                      placeholder="MRP (₹) - Optional"
+                      className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                      disabled={isUploading}
+                    />
+                    <input
+                      type="number"
+                      value={sellingPrice}
+                      onChange={(e) => setSellingPrice(e.target.value)}
+                      placeholder="Selling Price (₹)"
+                      className="w-full px-4 py-3 rounded-xl border border-[#F3D6DC] bg-white text-[#2B2B2B] placeholder-[#7A7A7A] focus:outline-none focus:ring-2 focus:ring-[#F48CA8]/50 focus:border-[#F48CA8] transition-all text-sm"
+                      required={!hasVariants}
+                      disabled={isUploading}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4 border border-[#F3D6DC] rounded-xl p-4 bg-gray-50/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-[#2B2B2B]">Variant Management</h4>
+                      <button
+                        type="button"
+                        onClick={addVariant}
+                        disabled={isUploading}
+                        className="flex items-center gap-1 text-xs font-bold text-[#E75480] bg-[#FFF5F7] px-3 py-1.5 rounded-lg hover:bg-[#F3D6DC] transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Variant
+                      </button>
+                    </div>
+                    {variants.length === 0 ? (
+                      <p className="text-xs text-gray-500 text-center py-4">No variants added. Click "Add Variant" to create one.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {variants.map((v, idx) => (
+                          <div key={idx} className="flex flex-wrap gap-2 items-start bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative pt-4 md:pt-3">
+                            <button
+                              type="button"
+                              onClick={() => removeVariant(idx)}
+                              disabled={isUploading}
+                              className="absolute -top-2 -right-2 bg-white border border-gray-200 text-red-500 rounded-full p-1 hover:bg-red-50 transition-colors shadow-sm"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="text"
+                              value={v.name || ''}
+                              onChange={(e) => updateVariant(idx, 'name', e.target.value)}
+                              placeholder="Name (e.g. Small)"
+                              className="w-full md:w-auto flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                              disabled={isUploading}
+                            />
+                            <div className="flex w-full md:w-auto gap-2">
+                              <input
+                                type="number"
+                                value={v.quantity || ''}
+                                onChange={(e) => updateVariant(idx, 'quantity', Number(e.target.value))}
+                                placeholder="Qty"
+                                className="w-20 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                                required
+                              />
+                              <input
+                                type="text"
+                                value={v.unit || ''}
+                                onChange={(e) => updateVariant(idx, 'unit', e.target.value)}
+                                placeholder="Unit"
+                                className="w-20 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                                required
+                              />
+                            </div>
+                            <div className="flex w-full md:w-auto gap-2">
+                              <input
+                                type="number"
+                                value={v.mrp || ''}
+                                onChange={(e) => updateVariant(idx, 'mrp', Number(e.target.value))}
+                                placeholder="MRP"
+                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                              />
+                              <input
+                                type="number"
+                                value={v.sellingPrice || ''}
+                                onChange={(e) => updateVariant(idx, 'sellingPrice', Number(e.target.value))}
+                                placeholder="Selling Price"
+                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#F48CA8]"
+                                disabled={isUploading}
+                                required
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <textarea
                   value={description}

@@ -83,10 +83,10 @@ const CartSidebar: React.FC = () => {
             <div className="flex flex-col gap-5">
               {items.map((item) => {
                 const primaryImage = item.product.images?.find(img => img.isPrimary)?.url || item.product.image || '';
-                const price = item.product.sellingPrice || item.product.price || 0;
+                const price = item.selectedVariant?.sellingPrice || item.product.sellingPrice || item.product.price || 0;
                 
                 return (
-                  <div key={item.product.id} className="flex gap-4 p-3 bg-white border border-[#F3D6DC]/50 rounded-2xl shadow-sm">
+                  <div key={`${item.product.id}-${item.selectedVariant?.id || 'base'}`} className="flex gap-4 p-3 bg-white border border-[#F3D6DC]/50 rounded-2xl shadow-sm">
                     {/* Item Image */}
                     <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
                       <img 
@@ -100,6 +100,11 @@ const CartSidebar: React.FC = () => {
                     <div className="flex flex-col flex-1 py-1">
                       <h4 className="text-sm font-semibold text-[#2B2B2B] line-clamp-1 mb-1">
                         {item.product.name}
+                        {item.selectedVariant && (
+                          <span className="text-gray-500 font-normal ml-1">
+                            - {item.selectedVariant.name || `${item.selectedVariant.quantity} ${item.selectedVariant.unit}`}
+                          </span>
+                        )}
                       </h4>
                       <div className="text-sm font-bold text-[#E75480] mb-3">
                         {formatPrice(price)}
@@ -109,7 +114,7 @@ const CartSidebar: React.FC = () => {
                       <div className="flex items-center justify-between mt-auto">
                         <div className="flex items-center gap-3 bg-gray-50 rounded-full px-2 py-1 border border-gray-100">
                           <button 
-                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.product.id, item.selectedVariant?.id, item.quantity - 1)}
                             className="p-1 hover:text-[#E75480] text-gray-500 transition-colors"
                           >
                             <Minus className="w-3.5 h-3.5" />
@@ -118,7 +123,7 @@ const CartSidebar: React.FC = () => {
                             {item.quantity}
                           </span>
                           <button 
-                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.product.id, item.selectedVariant?.id, item.quantity + 1)}
                             className="p-1 hover:text-[#E75480] text-gray-500 transition-colors"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -126,7 +131,7 @@ const CartSidebar: React.FC = () => {
                         </div>
                         
                         <button 
-                          onClick={() => removeFromCart(item.product.id)}
+                          onClick={() => removeFromCart(item.product.id, item.selectedVariant?.id)}
                           className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
