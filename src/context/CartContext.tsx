@@ -13,7 +13,7 @@ interface CartContextType {
   isCartOpen: boolean;
   totalItems: number;
   subtotal: number;
-  addToCart: (product: Product, variant?: ProductVariant) => void;
+  addToCart: (product: Product, variant?: ProductVariant, quantity?: number) => void;
   removeFromCart: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, variantId: string | undefined, quantity: number) => void;
   clearCart: () => void;
@@ -40,7 +40,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('shopping_cart', JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (product: Product, variant?: ProductVariant) => {
+  const addToCart = (product: Product, variant?: ProductVariant, quantity: number = 1) => {
     setItems(prev => {
       const existing = prev.find(item => 
         item.product.id === product.id && item.selectedVariant?.id === variant?.id
@@ -48,16 +48,16 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (existing) {
         return prev.map(item => 
           item.product.id === product.id && item.selectedVariant?.id === variant?.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prev, { product, quantity: 1, selectedVariant: variant }];
+      return [...prev, { product, quantity, selectedVariant: variant }];
     });
     
     // Show toast instead of opening the cart
     const variantText = variant ? ` (${variant.quantity} ${variant.unit})` : '';
-    setToastMessage(`✓ ${product.name}${variantText} added to cart successfully.`);
+    setToastMessage(`✓ ${quantity}x ${product.name}${variantText} added to cart successfully.`);
     setTimeout(() => {
       setToastMessage(null);
     }, 3000);

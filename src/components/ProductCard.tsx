@@ -55,6 +55,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
               {product.description}
             </p>
           )}
+          <button 
+            className="mt-3 w-full py-1.5 sm:py-2 bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white text-xs sm:text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+          >
+            Buy Now
+          </button>
         </div>
       </div>
     </div>
