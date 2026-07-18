@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import CategoryPage from './pages/CategoryPage';
 import AdminDashboard from './admin/AdminDashboard';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import AuthModal from './components/AuthModal';
 import CartSidebar from './components/CartSidebar';
 import AdminRoute from './admin/AdminRoute';
+import Footer from './components/Footer';
 
 function App() {
   return (
@@ -17,6 +19,7 @@ function App() {
             <Navbar />
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/category/:categoryId" element={<CategoryPage />} />
               <Route 
                 path="/admin" 
                 element={
@@ -26,6 +29,7 @@ function App() {
                 } 
               />
             </Routes>
+            <Footer />
             <AuthModal />
             <CartSidebar />
           </div>

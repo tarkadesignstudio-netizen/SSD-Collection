@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import type { Product, ProductVariant } from '../data/products';
 import { useCart } from '../context/CartContext';
 
@@ -25,9 +25,13 @@ const dummyImages = [
 const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined);
+  const [showQuantity, setShowQuantity] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
 
   useEffect(() => {
+    setShowQuantity(false);
+    setQuantity(1);
     if (product.hasVariants && product.variants && product.variants.length > 0) {
       setSelectedVariant(product.variants[0]);
     } else {
@@ -84,9 +88,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
         </button>
 
         {/* Left Side: Images */}
-        <div className="w-full md:w-1/2 flex flex-col p-6 gap-4 bg-[#FAFAFA]">
+        <div className="w-full md:w-1/2 flex flex-col p-4 md:p-6 gap-4 bg-[#FAFAFA]">
           {/* Main Large Image */}
-          <div className="relative flex-1 rounded-2xl overflow-hidden bg-white shadow-sm min-h-[300px] md:min-h-[450px]">
+          <div className="relative flex-1 rounded-2xl overflow-hidden bg-white shadow-sm min-h-[250px] sm:min-h-[300px] md:min-h-[450px]">
              <img 
                src={images[activeImageIndex]} 
                alt={product.name} 
@@ -135,11 +139,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
         </div>
 
         {/* Right Side: Product Details */}
-        <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center overflow-y-auto bg-white">
-          <span className="text-sm font-semibold uppercase tracking-widest text-[#F48CA8] mb-3">
+        <div className="w-full md:w-1/2 p-5 md:p-10 flex flex-col justify-center overflow-y-auto bg-white">
+          <span className="text-xs md:text-sm font-semibold uppercase tracking-widest text-[#F48CA8] mb-2 md:mb-3">
             {product.category}
           </span>
-          <h2 className="text-3xl font-bold text-[#2B2B2B] mb-4 leading-tight">
+          <h2 className="text-2xl md:text-3xl font-bold text-[#2B2B2B] mb-3 md:mb-4 leading-tight">
             {product.name}
           </h2>
           {displayStock && (
@@ -198,20 +202,54 @@ const ProductModal: React.FC<ProductModalProps> = ({ product, isOpen, onClose })
           <div className="w-12 h-1 bg-[#F3D6DC] rounded-full mb-10"></div>
 
           {/* Action buttons */}
-          <button 
-            disabled={displayStock}
-            onClick={() => {
-              addToCart(product, selectedVariant);
-              onClose();
-            }}
-            className={`w-full font-medium py-4 px-8 rounded-xl transition-all duration-300 text-lg flex items-center justify-center gap-2 focus:outline-none ${
-              displayStock 
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white shadow-md shadow-[#F48CA8]/30 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02]'
-            }`}
-          >
-            {displayStock ? "Out of Stock" : "Add to Cart"}
-          </button>
+          <div className="flex items-center gap-3 w-full">
+            <button 
+              disabled={displayStock}
+              onClick={() => {
+                if (displayStock) return;
+                if (!showQuantity) {
+                  setShowQuantity(true);
+                } else {
+                  addToCart(product, selectedVariant, quantity);
+                  onClose();
+                }
+              }}
+              className={`font-medium py-3.5 px-8 rounded-xl transition-all duration-300 text-base md:text-lg flex items-center justify-center gap-2 focus:outline-none whitespace-nowrap ${
+                showQuantity ? 'flex-1' : 'w-full'
+              } ${
+                displayStock 
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-[#F48CA8] to-[#E75480] text-white shadow-md shadow-[#F48CA8]/30 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02]'
+              }`}
+            >
+              {displayStock ? "Out of Stock" : showQuantity ? "Buy Now" : "Buy Now"}
+            </button>
+
+            {/* Quantity Selector */}
+            <div 
+              className={`flex items-center justify-between bg-[#FAFAFA] border border-[#EAEAEA] rounded-xl overflow-hidden transition-all duration-300 ease-in-out ${
+                showQuantity ? 'w-36 opacity-100 px-1.5 h-[52px]' : 'w-0 opacity-0 px-0 h-[52px] border-transparent'
+              }`}
+            >
+              <button
+                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                className="p-2 text-[#7A7A7A] hover:text-[#E75480] hover:bg-white rounded-lg transition-colors focus:outline-none disabled:opacity-50 disabled:hover:text-[#7A7A7A] disabled:hover:bg-transparent"
+                disabled={quantity <= 1 || !showQuantity}
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="font-semibold text-[#2B2B2B] text-lg w-6 text-center select-none">
+                {quantity}
+              </span>
+              <button
+                onClick={() => setQuantity(q => q + 1)}
+                className="p-2 text-[#7A7A7A] hover:text-[#E75480] hover:bg-white rounded-lg transition-colors focus:outline-none disabled:opacity-50"
+                disabled={!showQuantity}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
