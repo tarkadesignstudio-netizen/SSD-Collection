@@ -32,23 +32,36 @@ const CategoryPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
+        const productsPromise = getDocs(collection(db, "products")).catch(err => {
+          console.error("Error fetching products:", err);
+          return null;
+        });
+        const categoriesPromise = getDocs(collection(db, "categories")).catch(err => {
+          console.error("Error fetching categories:", err);
+          return null;
+        });
+        const domainsPromise = getDocs(collection(db, "domains")).catch(err => {
+          console.warn("Error fetching domains:", err);
+          return null;
+        });
+
         const [productsSnapshot, categoriesSnapshot, domainsSnapshot] = await Promise.all([
-          getDocs(collection(db, "products")),
-          getDocs(collection(db, "categories")),
-          getDocs(collection(db, "domains"))
+          productsPromise,
+          categoriesPromise,
+          domainsPromise
         ]);
 
-        const fetchedProducts = productsSnapshot.docs.map(doc => ({
+        const fetchedProducts = productsSnapshot ? productsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as Product[];
+        })) as Product[] : [];
         
         setProducts(fetchedProducts);
 
-        const fetchedCategoriesData = categoriesSnapshot.docs.map(doc => ({
+        const fetchedCategoriesData = categoriesSnapshot ? categoriesSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as Category[];
+        })) as Category[] : [];
         
         // Find subcategories belonging to this domain
         const domainCategories = fetchedCategoriesData.filter(c => c.domain === decodedCategory);
@@ -59,12 +72,14 @@ const CategoryPage: React.FC = () => {
 
         // Find banner image from either domains or categories matching the name
         let foundImage = '';
-        domainsSnapshot.forEach(doc => {
-          if (doc.data().name === decodedCategory && doc.data().image) {
-            foundImage = doc.data().image;
-          }
-        });
-        if (!foundImage) {
+        if (domainsSnapshot) {
+          domainsSnapshot.forEach(doc => {
+            if (doc.data().name === decodedCategory && doc.data().image) {
+              foundImage = doc.data().image;
+            }
+          });
+        }
+        if (!foundImage && categoriesSnapshot) {
           categoriesSnapshot.forEach(doc => {
             if (doc.data().name === decodedCategory && doc.data().image) {
               foundImage = doc.data().image;

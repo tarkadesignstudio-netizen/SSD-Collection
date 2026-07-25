@@ -42,26 +42,43 @@ const Home: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const productsPromise = getDocs(collection(db, "products")).catch(err => {
+          console.error("Error fetching products:", err);
+          return null;
+        });
+        const categoriesPromise = getDocs(collection(db, "categories")).catch(err => {
+          console.error("Error fetching categories:", err);
+          return null;
+        });
+        const domainsPromise = getDocs(collection(db, "domains")).catch(err => {
+          console.warn("Error fetching domains:", err);
+          return null;
+        });
+
         const [productsSnapshot, categoriesSnapshot, domainsSnapshot] = await Promise.all([
-          getDocs(collection(db, "products")),
-          getDocs(collection(db, "categories")),
-          getDocs(collection(db, "domains"))
+          productsPromise,
+          categoriesPromise,
+          domainsPromise
         ]);
+
+        if (!productsSnapshot) {
+          throw new Error("Failed to load products. Please check your connection and try again.");
+        }
         
         const fetchedProducts = productsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Product[];
         
-        const fetchedCategoriesData = categoriesSnapshot.docs.map(doc => ({
+        const fetchedCategoriesData = categoriesSnapshot ? categoriesSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as Category[];
+        })) as Category[] : [];
         
-        const fetchedDomainsData = domainsSnapshot.docs.map(doc => ({
+        const fetchedDomainsData = domainsSnapshot ? domainsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as Domain[];
+        })) as Domain[] : [];
         
         setDomains(fetchedDomainsData);
         setCategories(fetchedCategoriesData);
@@ -190,8 +207,30 @@ const Home: React.FC = () => {
       >
         <div className="flex flex-col gap-6 md:gap-16 pt-6 md:pt-16 max-w-screen-2xl mx-auto px-2 sm:px-4 md:px-8">
           
-          {/* Category Showcase (Only shown if no search query) */}
-          {!searchQuery && (
+          {/* Global Loading / Error Display */}
+          {isLoading && (
+            <div className="bg-[#FFF5F7]/95 rounded-[2.5rem] shadow-xl overflow-hidden backdrop-blur-sm border border-white/60 py-20 flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E75480]"></div>
+            </div>
+          )}
+
+          {!isLoading && error && (
+            <div className="bg-[#FFF5F7]/95 rounded-[2.5rem] shadow-xl overflow-hidden backdrop-blur-sm border border-white/60 py-20 flex justify-center text-center">
+              <div className="bg-red-50 text-red-500 px-6 py-4 rounded-xl max-w-md border border-red-100 shadow-sm">
+                <p className="font-medium text-lg mb-2">Oops! Something went wrong.</p>
+                <p className="text-sm">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Category Showcase (Only shown if no search query and not loading/error) */}
+          {!searchQuery && !isLoading && !error && (
             <div className="bg-[#FFF5F7]/95 rounded-[2.5rem] shadow-xl overflow-hidden backdrop-blur-sm border border-white/60">
               <CategoryShowcase items={showcaseItems} />
             </div>
@@ -220,7 +259,7 @@ const Home: React.FC = () => {
           )}
 
           {/* Action Bar & Product Grid (Shown only if view all or filters applied) */}
-          {showFullListing && (
+          {showFullListing && !isLoading && !error && (
             <div className="bg-[#FFF5F7]/95 rounded-[2.5rem] shadow-xl overflow-hidden backdrop-blur-sm border border-white/60 py-8 md:py-12">
               <div className="px-4 md:px-8 max-w-7xl mx-auto mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex flex-col">
@@ -261,24 +300,7 @@ const Home: React.FC = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 md:px-8">
-              {isLoading ? (
-                <div className="w-full flex justify-center py-20">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E75480]"></div>
-                </div>
-              ) : error ? (
-                <div className="w-full flex justify-center py-20 text-center">
-                  <div className="bg-red-50 text-red-500 px-6 py-4 rounded-xl max-w-md border border-red-100 shadow-sm">
-                    <p className="font-medium text-lg mb-2">Oops! Something went wrong.</p>
-                    <p className="text-sm">{error}</p>
-                    <button 
-                      onClick={() => window.location.reload()} 
-                      className="mt-4 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                </div>
-              ) : processedProducts.length === 0 ? (
+              {processedProducts.length === 0 ? (
                 <div className="w-full flex flex-col items-center justify-center py-20 px-4 text-center">
                   <div className="bg-white p-6 rounded-full shadow-sm border border-[#F3D6DC] mb-4">
                     <SearchX className="w-12 h-12 text-[#E75480] opacity-80" />
