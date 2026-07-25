@@ -41,13 +41,22 @@ const DomainManagement: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      const domainsPromise = getDocs(collection(db, "domains")).catch(err => {
+        console.warn("Error fetching domains:", err);
+        return null;
+      });
+      const categoriesPromise = getDocs(collection(db, "categories")).catch(err => {
+        console.error("Error fetching categories:", err);
+        return null;
+      });
+
       const [domainsSnap, categoriesSnap] = await Promise.all([
-        getDocs(collection(db, "domains")),
-        getDocs(collection(db, "categories"))
+        domainsPromise,
+        categoriesPromise
       ]);
 
-      const loadedDomains = domainsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Domain));
-      const loadedCategories = categoriesSnap.docs.map(c => ({ id: c.id, ...c.data() } as Category));
+      const loadedDomains = domainsSnap ? domainsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Domain)) : [];
+      const loadedCategories = categoriesSnap ? categoriesSnap.docs.map(c => ({ id: c.id, ...c.data() } as Category)) : [];
 
       setDomains(loadedDomains);
       setCategories(loadedCategories);
