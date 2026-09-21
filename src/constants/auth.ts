@@ -5,5 +5,5 @@ export const ALLOWED_ADMIN_EMAILS = [
 ];
 
 export const isAdmin = (user: { email?: string | null } | null) => {
-  return !!user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email);
+  return !!user?.email && ALLOWED_ADMIN_EMAILS.includes(user.email.toLowerCase());
 };

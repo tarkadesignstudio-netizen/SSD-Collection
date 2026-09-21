@@ -85,8 +85,15 @@ const AddProductForm: React.FC = () => {
         return;
       }
 
+      if (!user) {
+        console.error("[Authentication Error] User is not logged in.");
+        alert("Failed to upload product:\nAuthentication Error: User is not logged in.");
+        return;
+      }
+
       if (!isAdmin(user)) {
-        alert("Unauthorized access");
+        console.error("[Authorization Error] Unauthorized access. Admin privileges required for email: " + user.email);
+        alert("Failed to upload product:\nAuthorization Error: You do not have admin permissions.");
         return;
       }
 
@@ -107,10 +114,16 @@ const AddProductForm: React.FC = () => {
 
       setIsUploading(true);
 
-      // 1. Upload all images concurrently
-      console.log(`Uploading ${files.length} images...`);
-      const uploadPromises = files.map(f => uploadToCloudinary(f.file));
-      const imageUrls = await Promise.all(uploadPromises);
+      let imageUrls: string[] = [];
+      try {
+        // 1. Upload all images concurrently
+        console.log(`Uploading ${files.length} images...`);
+        const uploadPromises = files.map(f => uploadToCloudinary(f.file));
+        imageUrls = await Promise.all(uploadPromises);
+      } catch (uploadError: any) {
+        console.error("[Storage Upload Error] Failed to upload images to Cloudinary:", uploadError);
+        throw new Error("[Storage Upload Error] " + (uploadError.message || "Failed to upload image."));
+      }
 
       const productImages = imageUrls.map((url, idx) => ({
         url,
@@ -131,8 +144,8 @@ const AddProductForm: React.FC = () => {
         mrp: v.mrp ? Number(v.mrp) : undefined
       }));
 
-      console.log("Saving product to Firestore...");
       try {
+        console.log("Saving product to Firestore...");
         const productData: any = {
           name: productName,
           sellingPrice: finalSellingPrice,
@@ -157,9 +170,9 @@ const AddProductForm: React.FC = () => {
 
         await addDoc(collection(db, "products"), productData);
         console.log("Product saved successfully to Firestore");
-      } catch (firestoreError) {
-        console.error("Firestore error:", firestoreError);
-        throw firestoreError; 
+      } catch (firestoreError: any) {
+        console.error("[Firestore Write Error] Failed to save product document:", firestoreError);
+        throw new Error("[Firestore Write Error] " + (firestoreError.message || "Missing or insufficient permissions."));
       }
 
       alert("Product uploaded successfully!");

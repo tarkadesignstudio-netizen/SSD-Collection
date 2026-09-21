@@ -3,11 +3,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAdmin() {
-      return request.auth != null && (
-        request.auth.token.email == "tarkadesignstudio@gmail.com" ||
-        request.auth.token.email == "ssd.motwani@gmail.com" ||
-        request.auth.token.email == "ssdgiftcollection7@gmail.com"
-      );
+      return request.auth != null 
+        && request.auth.token != null
+        && request.auth.token.email != null 
+        && (
+          request.auth.token.email.lower() == "tarkadesignstudio@gmail.com" ||
+          request.auth.token.email.lower() == "ssd.motwani@gmail.com" ||
+          request.auth.token.email.lower() == "ssdgiftcollection7@gmail.com"
+        );
     }
 
     match /products/{productId} {
